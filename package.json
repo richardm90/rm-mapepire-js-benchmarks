@@ -9,7 +9,9 @@
     "bench:standalone": "node benchmarks/standalone.js",
     "bench:pooled": "node benchmarks/pooled.js",
     "bench:mapepire-standalone": "node benchmarks/mapepire-standalone.js",
-    "bench:mapepire-pooled": "node benchmarks/mapepire-pooled.js"
+    "bench:mapepire-pooled": "node benchmarks/mapepire-pooled.js",
+    "bench:idb-standalone": "node benchmarks/idb-standalone.js",
+    "bench:idb-pooled": "node benchmarks/idb-pooled.js"
   },
   "keywords": [],
   "author": "",
@@ -17,6 +19,7 @@
   "description": "",
   "dependencies": {
     "dotenv": "^16.4.7",
+    "idb-pconnector": "^1.0.0",
     "rm-mapepire-js": "^0.3.0"
   }
 }

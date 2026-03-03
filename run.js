@@ -5,6 +5,8 @@ const { runStandaloneBenchmarks } = require('./benchmarks/standalone');
 const { runPooledBenchmarks } = require('./benchmarks/pooled');
 const { runMapepireStandaloneBenchmarks } = require('./benchmarks/mapepire-standalone');
 const { runMapepirePooledBenchmarks } = require('./benchmarks/mapepire-pooled');
+const { runIdbStandaloneBenchmarks } = require('./benchmarks/idb-standalone');
+const { runIdbPooledBenchmarks } = require('./benchmarks/idb-pooled');
 
 async function main() {
   console.log('='.repeat(80));
@@ -37,11 +39,19 @@ async function main() {
   console.log('\n--- @ibm/mapepire-js POOLED BENCHMARKS ---');
   const mapPooledResults = await runMapepirePooledBenchmarks(creds);
 
-  // 6. Teardown
+  // 6. idb-pconnector standalone benchmarks
+  console.log('\n--- idb-pconnector STANDALONE BENCHMARKS ---');
+  const idbStandaloneResults = await runIdbStandaloneBenchmarks(creds);
+
+  // 7. idb-pconnector pooled benchmarks
+  console.log('\n--- idb-pconnector POOLED BENCHMARKS ---');
+  const idbPooledResults = await runIdbPooledBenchmarks(creds);
+
+  // 8. Teardown
   console.log('\n--- TEARDOWN ---');
   await teardown(creds);
 
-  // 7. Summary
+  // 9. Summary
   const totalEnd = process.hrtime.bigint();
   const totalMs = Number(totalEnd - totalStart) / 1e6;
 
@@ -49,7 +59,7 @@ async function main() {
   console.log(`  Total elapsed: ${(totalMs / 1000).toFixed(2)}s`);
   console.log('='.repeat(80));
 
-  // 4-way comparison table
+  // 6-way comparison table
   const commonLabels = [
     'Connection init',
     'VALUES 1',
@@ -68,16 +78,18 @@ async function main() {
     { name: 'rm Pooled', results: rmPooledResults },
     { name: 'map Standalone', results: mapStandaloneResults },
     { name: 'map Pooled', results: mapPooledResults },
+    { name: 'idb Standalone', results: idbStandaloneResults },
+    { name: 'idb Pooled', results: idbPooledResults },
   ];
 
-  console.log(`\n${'='.repeat(95)}`);
+  console.log(`\n${'='.repeat(127)}`);
   console.log('  Comparison — Average (ms)');
-  console.log('='.repeat(95));
+  console.log('='.repeat(127));
   console.log(
     padRight('Test', 30) +
     sets.map((s) => padRight(s.name, 16)).join('')
   );
-  console.log('-'.repeat(95));
+  console.log('-'.repeat(127));
 
   for (const keyword of commonLabels) {
     const row = [padRight(keyword, 30)];
@@ -87,7 +99,7 @@ async function main() {
     }
     console.log(row.join(''));
   }
-  console.log('-'.repeat(95));
+  console.log('-'.repeat(127));
 }
 
 function padRight(str, len) {

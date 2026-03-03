@@ -1,11 +1,12 @@
 # Mapepire DB Connector Performance Benchmarks
 
-Benchmarks database request timings for **rm-mapepire-js** (connection pool wrapper) and the base **@ibm/mapepire-js** package, comparing standalone and pooled connection patterns.
+Benchmarks database request timings for **rm-mapepire-js** (connection pool wrapper), the base **@ibm/mapepire-js** package, and **idb-pconnector** (native IBM i connector), comparing standalone and pooled connection patterns.
 
 ## Prerequisites
 
-- Node.js (v18+)
+- Node.js (v18+) running on IBM i
 - A Mapepire server running on your IBM i system (default port 8076)
+- `idb-connector` native addon (installed automatically with `idb-pconnector`)
 
 ## Setup
 
@@ -34,7 +35,7 @@ Benchmarks database request timings for **rm-mapepire-js** (connection pool wrap
 
 ### Full Suite
 
-Runs setup, all four benchmark suites, prints a comparison table, then tears down the test table:
+Runs setup, all six benchmark suites, prints a comparison table, then tears down the test table:
 
 ```bash
 npm start
@@ -50,6 +51,8 @@ Run a specific benchmark suite on its own (assumes the test table already exists
 | `npm run bench:pooled` | rm-mapepire-js — `RmPool` (pooled connections) |
 | `npm run bench:mapepire-standalone` | @ibm/mapepire-js — single `SQLJob` |
 | `npm run bench:mapepire-pooled` | @ibm/mapepire-js — `Pool` (pooled connections) |
+| `npm run bench:idb-standalone` | idb-pconnector — single `Connection` |
+| `npm run bench:idb-pooled` | idb-pconnector — `DBPool` (pooled connections) |
 
 ### Table Management
 
@@ -64,7 +67,7 @@ npm run teardown   # drops the PERFTEST table
 
 Each suite runs 10 iterations per test and reports min, max, average, median, and P95 timings.
 
-**Common tests (all four suites):**
+**Common tests (all six suites):**
 
 - Connection / pool initialisation
 - `VALUES 1` — minimal round-trip latency
@@ -80,9 +83,9 @@ Each suite runs 10 iterations per test and reports min, max, average, median, an
 **Pooled-only tests:**
 
 - Concurrent batch — 50x `VALUES 1` via `Promise.all`
-- Manual attach/detach (rm-mapepire-js) or popJob (mapepire-js) patterns
-- Attach + 10 queries + detach (rm-mapepire-js only)
+- Manual attach/detach (rm-mapepire-js, idb-pconnector) or getJob (mapepire-js) patterns
+- Attach + N queries + detach (rm-mapepire-js, idb-pconnector)
 
 ## Output
 
-Each suite prints its own results table. When running the full suite (`npm start`), a final 4-way comparison table is printed showing average timings across all suites side by side.
+Each suite prints its own results table. When running the full suite (`npm start`), a final 6-way comparison table is printed showing average timings across all suites side by side.
