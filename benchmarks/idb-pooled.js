@@ -43,10 +43,19 @@ async function runIdbPooledBenchmarks(connCreds) {
     );
     results.push(selectAllResult);
 
-    // 3. Parameterized SELECT via prepareExecute
+    // 3. Parameterized SELECT via manual attach
     const paramSelectResult = await benchmark(
       'SELECT WHERE ID = ? (param)',
-      () => pool.prepareExecute(`SELECT * FROM ${tableName} WHERE ID = ?`, [42]),
+      async () => {
+        const conn = pool.attach();
+        const stmt = conn.getStatement();
+        await stmt.prepare(`SELECT * FROM ${tableName} WHERE ID = ?`);
+        await stmt.bindParameters([42]);
+        await stmt.execute();
+        const rows = await stmt.fetchAll();
+        pool.detach(conn);
+        return rows;
+      },
       ITERATIONS
     );
     results.push(paramSelectResult);
