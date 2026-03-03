@@ -11,13 +11,14 @@ async function runIdbPooledBenchmarks(connCreds) {
 
   // idb-pconnector connects locally via *LOCAL — no network creds needed
   console.log(`\nInitializing idb-pconnector pool (${POOL_SIZE} connections)...`);
-  const SQL_ATTR_COMMIT = 0;
-  const SQL_TXN_NO_COMMIT = 1;
   const poolInitTime = await timeIt('Pool init', async () => {
-    // Create all connections upfront so setConnectionAttribute covers them all
+    // Create all connections upfront for the concurrent batch test
     const pool = new DBPool({ url: '*LOCAL' }, { incrementSize: BATCH_SIZE });
-    // Disable commitment control so DML works on non-journaled tables
-    await pool.setConnectionAttribute({ attribute: SQL_ATTR_COMMIT, value: SQL_TXN_NO_COMMIT });
+    // Disable commitment control on each connection so DML works on non-journaled tables.
+    // We set the attribute directly on the underlying dbconn to avoid disturbing statement state.
+    for (const pc of pool.connections) {
+      pc.connection.dbconn.setConnAttr(0, 1); // SQL_ATTR_COMMIT = 0, SQL_TXN_NO_COMMIT = 1
+    }
     return pool;
   });
   results.push({
