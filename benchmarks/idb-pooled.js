@@ -14,10 +14,13 @@ async function runIdbPooledBenchmarks(connCreds) {
   const poolInitTime = await timeIt('Pool init', async () => {
     // Create all connections upfront for the concurrent batch test
     const pool = new DBPool({ url: '*LOCAL' }, { incrementSize: BATCH_SIZE });
-    // Disable commitment control on each connection so DML works on non-journaled tables.
-    // We set the attribute directly on the underlying dbconn to avoid disturbing statement state.
-    for (const pc of pool.connections) {
-      pc.connection.dbconn.setConnAttr(0, 1); // SQL_ATTR_COMMIT = 0, SQL_TXN_NO_COMMIT = 1
+    // Disable commitment control on every connection so DML works on non-journaled tables.
+    // We attach each one, run the SET statement, then detach it back.
+    for (let i = 0; i < pool.connections.length; i++) {
+      const conn = pool.attach();
+      const stmt = conn.getStatement();
+      await stmt.exec('SET TRANSACTION ISOLATION LEVEL NO COMMIT');
+      await pool.detach(conn);
     }
     return pool;
   });
