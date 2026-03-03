@@ -44,6 +44,7 @@ async function runPooledBenchmarks(connCreds) {
     stats: { avg: perConnMs, min: perConnMs, max: perConnMs, median: perConnMs, p95: perConnMs },
   });
   const pool = poolInitTime.result;
+  console.log(`  Total connections after init: ${pool.getStats().total}`);
 
   try {
     // 1. VALUES 1 — minimal round-trip via pool.query() (auto attach/detach)
@@ -111,6 +112,7 @@ async function runPooledBenchmarks(connCreds) {
       ITERATIONS
     );
     results.push(deleteResult);
+    console.log(`  Total connections after CRUD tests: ${pool.getStats().total}`);
 
     // 9. Sequential batch — 50 queries via pool.query()
     const seqBatchResult = await timeIt(
@@ -128,6 +130,7 @@ async function runPooledBenchmarks(connCreds) {
       label: `Seq. batch ${BATCH_SIZE}x VALUES 1`,
       stats: stats(seqBatchResult.result),
     });
+    console.log(`  Total connections after sequential batch: ${pool.getStats().total}`);
 
     // 10. Concurrent batch — 50 queries via Promise.all
     const concurrentResult = await timeIt(
@@ -149,6 +152,7 @@ async function runPooledBenchmarks(connCreds) {
       label: `Concurrent total wallclock`,
       stats: { avg: concurrentResult.durationMs, min: concurrentResult.durationMs, max: concurrentResult.durationMs, median: concurrentResult.durationMs, p95: concurrentResult.durationMs },
     });
+    console.log(`  Total connections after concurrent batch: ${pool.getStats().total}`);
 
     // 11. Manual attach / query / detach
     const manualResult = await benchmark(
@@ -175,6 +179,7 @@ async function runPooledBenchmarks(connCreds) {
       ITERATIONS
     );
     results.push(bulkManualResult);
+    console.log(`  Total connections after all tests: ${pool.getStats().total}`);
 
   } finally {
     await pool.close();
