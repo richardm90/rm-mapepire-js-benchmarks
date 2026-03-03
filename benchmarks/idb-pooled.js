@@ -17,7 +17,7 @@ async function runIdbPooledBenchmarks(connCreds) {
     // Create all connections upfront so setConnectionAttribute covers them all
     const pool = new DBPool({ url: '*LOCAL' }, { incrementSize: BATCH_SIZE });
     // Disable commitment control so DML works on non-journaled tables
-    pool.setConnectionAttribute(SQL_ATTR_COMMIT, SQL_TXN_NO_COMMIT);
+    await pool.setConnectionAttribute({ attribute: SQL_ATTR_COMMIT, value: SQL_TXN_NO_COMMIT });
     return pool;
   });
   results.push({
@@ -138,7 +138,7 @@ async function runIdbPooledBenchmarks(connCreds) {
         const conn = pool.attach();
         const stmt = conn.getStatement();
         await stmt.exec('VALUES 1');
-        stmt.close();
+        // Let detach() handle statement cleanup
         pool.detach(conn);
       },
       ITERATIONS
@@ -150,11 +150,11 @@ async function runIdbPooledBenchmarks(connCreds) {
       'Attach + 10 queries + detach',
       async () => {
         const conn = pool.attach();
+        const stmt = conn.getStatement();
         for (let i = 0; i < 10; i++) {
-          const stmt = conn.getStatement();
           await stmt.exec('VALUES 1');
-          stmt.close();
         }
+        // Let detach() handle statement cleanup
         pool.detach(conn);
       },
       ITERATIONS

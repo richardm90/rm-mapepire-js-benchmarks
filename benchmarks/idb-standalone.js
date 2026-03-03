@@ -15,7 +15,7 @@ async function runIdbStandaloneBenchmarks(connCreds) {
   const connTime = await timeIt('Connection init', async () => {
     const conn = new Connection({ url: '*LOCAL' });
     // Disable commitment control so DML works on non-journaled tables
-    conn.getConnection().setConnAttr(SQL_ATTR_COMMIT, SQL_TXN_NO_COMMIT);
+    await conn.setConnAttr(SQL_ATTR_COMMIT, SQL_TXN_NO_COMMIT);
     return conn;
   });
   results.push({
