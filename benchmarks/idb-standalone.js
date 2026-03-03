@@ -10,8 +10,12 @@ async function runIdbStandaloneBenchmarks(connCreds) {
 
   // idb-pconnector connects locally via *LOCAL — no network creds needed
   console.log('\nConnecting (idb-pconnector standalone)...');
+  const SQL_ATTR_COMMIT = 0;
+  const SQL_TXN_NO_COMMIT = 1;
   const connTime = await timeIt('Connection init', async () => {
     const conn = new Connection({ url: '*LOCAL' });
+    // Disable commitment control so DML works on non-journaled tables
+    conn.getConnection().setConnAttr(SQL_ATTR_COMMIT, SQL_TXN_NO_COMMIT);
     return conn;
   });
   results.push({
