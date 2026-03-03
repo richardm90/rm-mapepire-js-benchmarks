@@ -1,4 +1,4 @@
-const { DBPool } = require('idb-pconnector');
+const { Connection } = require('idb-pconnector');
 const { creds, tableName, TEST_SCHEMA } = require('../config');
 const { benchmark, timeIt, stats, printResults } = require('../utils');
 
@@ -6,29 +6,70 @@ const ITERATIONS = 10;
 const BATCH_SIZE = 50;
 const POOL_SIZE = 5;
 
+// Simple round-robin pool of Connection objects.
+// DBPool cannot be used because it pre-allocates statement handles, which
+// prevents setting SQL_ATTR_COMMIT (required for DML on non-journaled tables).
+function createPool(size) {
+  const SQL_ATTR_COMMIT = 0;
+  const SQL_TXN_NO_COMMIT = 1;
+  const connections = [];
+  for (let i = 0; i < size; i++) {
+    const conn = new Connection({ url: '*LOCAL' });
+    // Set before any statement is created on this connection
+    conn.dbconn.setConnAttr(SQL_ATTR_COMMIT, SQL_TXN_NO_COMMIT);
+    connections.push(conn);
+  }
+  let next = 0;
+  return {
+    connections,
+    // Round-robin pick
+    pick() {
+      const conn = connections[next];
+      next = (next + 1) % connections.length;
+      return conn;
+    },
+    // Run a query on the next available connection
+    async runSql(sql) {
+      const conn = this.pick();
+      const stmt = conn.getStatement();
+      const result = await stmt.exec(sql);
+      stmt.close();
+      return result;
+    },
+    // Run a parameterized query
+    async prepareExecute(sql, params) {
+      const conn = this.pick();
+      const stmt = conn.getStatement();
+      await stmt.prepare(sql);
+      await stmt.bindParameters(params);
+      await stmt.execute();
+      const rows = await stmt.fetchAll();
+      stmt.close();
+      return rows;
+    },
+    // Close all connections
+    close() {
+      for (const conn of connections) {
+        conn.disconn();
+        conn.close();
+      }
+    },
+  };
+}
+
 async function runIdbPooledBenchmarks(connCreds) {
   const results = [];
 
   // idb-pconnector connects locally via *LOCAL — no network creds needed
   console.log(`\nInitializing idb-pconnector pool (${POOL_SIZE} connections)...`);
-  const poolInitTime = await timeIt('Pool init', async () => {
-    // Create all connections upfront for the concurrent batch test
-    const pool = new DBPool({ url: '*LOCAL' }, { incrementSize: BATCH_SIZE });
-    // Disable commitment control on every connection so DML works on non-journaled tables.
-    // Use CHGJOB via QCMDEXC since setConnAttr cannot be called after statement allocation.
-    for (let i = 0; i < pool.connections.length; i++) {
-      const conn = pool.attach();
-      const stmt = conn.getStatement();
-      await stmt.exec("CALL QSYS2.QCMDEXC('CHGJOB CMTCTL(*NONE)')");
-      await pool.detach(conn);
-    }
-    return pool;
+  const poolInitTime = await timeIt('Pool init', () => {
+    return createPool(POOL_SIZE);
   });
   results.push({
     label: `Pool init (${POOL_SIZE} conns)`,
     stats: { avg: poolInitTime.durationMs, min: poolInitTime.durationMs, max: poolInitTime.durationMs, median: poolInitTime.durationMs, p95: poolInitTime.durationMs },
   });
-  const pool = poolInitTime.result;
+  let pool = poolInitTime.result;
 
   try {
     // 1. VALUES 1 — minimal round-trip via pool.runSql()
@@ -47,19 +88,10 @@ async function runIdbPooledBenchmarks(connCreds) {
     );
     results.push(selectAllResult);
 
-    // 3. Parameterized SELECT via manual attach
+    // 3. Parameterized SELECT
     const paramSelectResult = await benchmark(
       'SELECT WHERE ID = ? (param)',
-      async () => {
-        const conn = pool.attach();
-        const stmt = conn.getStatement();
-        await stmt.prepare(`SELECT * FROM ${tableName} WHERE ID = ?`);
-        await stmt.bindParameters([42]);
-        await stmt.execute();
-        const rows = await stmt.fetchAll();
-        pool.detach(conn);
-        return rows;
-      },
+      () => pool.prepareExecute(`SELECT * FROM ${tableName} WHERE ID = ?`, [42]),
       ITERATIONS
     );
     results.push(paramSelectResult);
@@ -124,6 +156,9 @@ async function runIdbPooledBenchmarks(connCreds) {
     });
 
     // 10. Concurrent batch — 50 queries via Promise.all
+    // Scale pool to BATCH_SIZE connections for this test
+    pool.close();
+    pool = createPool(BATCH_SIZE);
     const concurrentResult = await timeIt(
       `Concurrent batch (${BATCH_SIZE} queries)`,
       async () => {
@@ -144,41 +179,11 @@ async function runIdbPooledBenchmarks(connCreds) {
       stats: { avg: concurrentResult.durationMs, min: concurrentResult.durationMs, max: concurrentResult.durationMs, median: concurrentResult.durationMs, p95: concurrentResult.durationMs },
     });
 
-    // 11. Manual attach + query + detach
-    const manualResult = await benchmark(
-      'Manual attach+query+detach',
-      async () => {
-        const conn = pool.attach();
-        const stmt = conn.getStatement();
-        await stmt.exec('VALUES 1');
-        // Let detach() handle statement cleanup
-        pool.detach(conn);
-      },
-      ITERATIONS
-    );
-    results.push(manualResult);
-
-    // 12. Attach, run 10 queries, then detach
-    const bulkManualResult = await benchmark(
-      'Attach + 10 queries + detach',
-      async () => {
-        const conn = pool.attach();
-        const stmt = conn.getStatement();
-        for (let i = 0; i < 10; i++) {
-          await stmt.exec('VALUES 1');
-        }
-        // Let detach() handle statement cleanup
-        pool.detach(conn);
-      },
-      ITERATIONS
-    );
-    results.push(bulkManualResult);
-
   } finally {
-    // DBPool connections are returned when detached; no explicit pool.close() needed
+    pool.close();
   }
 
-  printResults('idb-pconnector Pooled (DBPool) Benchmarks', results);
+  printResults('idb-pconnector Pooled (Connection pool) Benchmarks', results);
   return results;
 }
 
