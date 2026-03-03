@@ -1,0 +1,22 @@
+{
+  "name": "rm-mapepire-js-benchmarks",
+  "version": "1.0.0",
+  "main": "run.js",
+  "scripts": {
+    "start": "node run.js",
+    "setup": "node setup.js",
+    "teardown": "node teardown.js",
+    "bench:standalone": "node benchmarks/standalone.js",
+    "bench:pooled": "node benchmarks/pooled.js",
+    "bench:mapepire-standalone": "node benchmarks/mapepire-standalone.js",
+    "bench:mapepire-pooled": "node benchmarks/mapepire-pooled.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "rm-mapepire-js": "^0.3.0"
+  }
+}
