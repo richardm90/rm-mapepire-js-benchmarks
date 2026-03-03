@@ -15,11 +15,11 @@ async function runIdbPooledBenchmarks(connCreds) {
     // Create all connections upfront for the concurrent batch test
     const pool = new DBPool({ url: '*LOCAL' }, { incrementSize: BATCH_SIZE });
     // Disable commitment control on every connection so DML works on non-journaled tables.
-    // We attach each one, run the SET statement, then detach it back.
+    // Use CHGJOB via QCMDEXC since setConnAttr cannot be called after statement allocation.
     for (let i = 0; i < pool.connections.length; i++) {
       const conn = pool.attach();
       const stmt = conn.getStatement();
-      await stmt.exec('SET TRANSACTION ISOLATION LEVEL NO COMMIT');
+      await stmt.exec("CALL QSYS2.QCMDEXC('CHGJOB CMTCTL(*NONE)')");
       await pool.detach(conn);
     }
     return pool;
