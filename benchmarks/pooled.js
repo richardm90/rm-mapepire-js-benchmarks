@@ -37,6 +37,12 @@ async function runPooledBenchmarks(connCreds) {
     label: `Pool init (${POOL_SIZE} conns)`,
     stats: { avg: poolInitTime.durationMs, min: poolInitTime.durationMs, max: poolInitTime.durationMs, median: poolInitTime.durationMs, p95: poolInitTime.durationMs },
   });
+  // Per-connection stats from pool init
+  const perConnMs = poolInitTime.durationMs / POOL_SIZE;
+  results.push({
+    label: `Avg conn create (from pool)`,
+    stats: { avg: perConnMs, min: perConnMs, max: perConnMs, median: perConnMs, p95: perConnMs },
+  });
   const pool = poolInitTime.result;
 
   try {

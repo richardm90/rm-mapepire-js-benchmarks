@@ -13,15 +13,20 @@ function createPool(size) {
   const SQL_ATTR_COMMIT = 0;
   const SQL_TXN_NO_COMMIT = 1;
   const connections = [];
+  const connDurations = [];
   for (let i = 0; i < size; i++) {
+    const start = process.hrtime.bigint();
     const conn = new Connection({ url: '*LOCAL' });
     // Set before any statement is created on this connection
     conn.dbconn.setConnAttr(SQL_ATTR_COMMIT, SQL_TXN_NO_COMMIT);
+    const end = process.hrtime.bigint();
+    connDurations.push(Number(end - start) / 1e6);
     connections.push(conn);
   }
   let next = 0;
   return {
     connections,
+    connDurations,
     // Round-robin pick
     pick() {
       const conn = connections[next];
@@ -68,6 +73,11 @@ async function runIdbPooledBenchmarks(connCreds) {
   results.push({
     label: `Pool init (${POOL_SIZE} conns)`,
     stats: { avg: poolInitTime.durationMs, min: poolInitTime.durationMs, max: poolInitTime.durationMs, median: poolInitTime.durationMs, p95: poolInitTime.durationMs },
+  });
+  // Per-connection creation stats (individually timed)
+  results.push({
+    label: `Per-conn create time`,
+    stats: stats(poolInitTime.result.connDurations),
   });
   let pool = poolInitTime.result;
 

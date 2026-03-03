@@ -26,6 +26,12 @@ async function runMapepirePooledBenchmarks(connCreds) {
     label: `Pool init (${POOL_SIZE} conns)`,
     stats: { avg: poolInitTime.durationMs, min: poolInitTime.durationMs, max: poolInitTime.durationMs, median: poolInitTime.durationMs, p95: poolInitTime.durationMs },
   });
+  // Per-connection estimate (pool creates connections internally)
+  const perConnMs = poolInitTime.durationMs / POOL_SIZE;
+  results.push({
+    label: `Avg conn create (from pool)`,
+    stats: { avg: perConnMs, min: perConnMs, max: perConnMs, median: perConnMs, p95: perConnMs },
+  });
   const pool = poolInitTime.result;
   console.log(`  Active jobs after init: ${pool.getActiveJobCount()}`);
 
