@@ -1,5 +1,7 @@
 # Mapepire DB Connector Performance Benchmarks
 
+**RM - 15/04/2026:** This project is now redundant. The **rm-mapepire-js** package was renamed to [**rm-connector-js**](https://github.com/richardm90/rm-connector-js) and the performance tests have been included within the repo, it is no longer a separate repo.
+
 Benchmarks database request timings for **rm-mapepire-js** (connection pool wrapper), the base **@ibm/mapepire-js** package, and **idb-pconnector** (native IBM i connector), comparing standalone and pooled connection patterns.
 
 ## Prerequisites
